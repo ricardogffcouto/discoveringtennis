@@ -1,0 +1,168 @@
+:root {
+  --dark-yellow: #caa410;
+  --dark-green: #0b6a3f;
+  --dark-red: #912537;
+  --bright-green: #1fd773;
+  --surface: rgba(12, 22, 33, 0.85);
+  --text-primary: #fdfdfd;
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --accent: #ffcf50;
+  --spin-duration: 1s;
+  font-size: clamp(15px, 1.9vw, 18px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text-primary);
+  background: radial-gradient(circle at 20% 20%, #1f3550, #0a101a 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.app {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 5vw, 2.75rem);
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(26, 40, 57, 0.88), rgba(9, 18, 30, 0.95));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+.app__header {
+  text-align: center;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.app__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.roulette {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.roulette__wheel {
+  width: min(70vw, 280px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    var(--dark-yellow) 0deg 72deg,
+    var(--dark-green) 72deg 180deg,
+    var(--dark-red) 180deg 216deg,
+    var(--bright-green) 216deg 234deg,
+    var(--dark-red) 234deg 270deg,
+    var(--dark-yellow) 270deg 360deg
+  );
+  box-shadow: inset 0 0 0 12px rgba(10, 16, 26, 0.85), 0 20px 35px rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition: transform var(--spin-duration) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.roulette__wheel::after {
+  content: '';
+  width: 35%;
+  height: 35%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fdfdfd 0%, #ffd56a 50%, #c38800 100%);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.roulette__pointer {
+  position: absolute;
+  top: -1.2rem;
+  width: 0;
+  height: 0;
+  border-left: 1.1rem solid transparent;
+  border-right: 1.1rem solid transparent;
+  border-bottom: 1.8rem solid var(--accent);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+}
+
+.roulette__button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 2.4rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ffb347, #ffcc33);
+  color: #1d1d1d;
+  cursor: pointer;
+  box-shadow: 0 12px 25px rgba(255, 187, 64, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.roulette__button:focus-visible {
+  outline: 3px solid rgba(255, 216, 115, 0.9);
+  outline-offset: 4px;
+}
+
+.roulette__button:hover,
+.roulette__button:active {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 18px 30px rgba(255, 200, 80, 0.5);
+}
+
+.roulette__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.25);
+}
+
+.roulette__status {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  min-height: 3.2rem;
+  color: var(--text-muted);
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 204, 70, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(255, 204, 70, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 204, 70, 0);
+  }
+}
+
+.roulette__button:not(:disabled) {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 3rem;
+  }
+
+  .app {
+    width: min(520px, 100%);
+    gap: 2rem;
+  }
+
+  .roulette__wheel {
+    width: 320px;
+  }
+}
