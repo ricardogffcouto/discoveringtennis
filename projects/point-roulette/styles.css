@@ -101,14 +101,14 @@ body {
 
 .roulette__pointer {
   position: absolute;
-  right: calc(var(--pointer-height) * -0.85);
-  top: 50%;
+  top: calc(var(--pointer-height) * -0.9);
+  left: 50%;
   width: 0;
   height: 0;
   border-left: calc(var(--pointer-width) / 2) solid transparent;
   border-right: calc(var(--pointer-width) / 2) solid transparent;
-  border-bottom: var(--pointer-height) solid var(--accent);
-  transform: translateY(-50%) rotate(90deg);
+  border-top: var(--pointer-height) solid var(--accent);
+  transform: translateX(-50%);
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 
@@ -116,12 +116,12 @@ body {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: -0.35rem;
+  top: calc(var(--pointer-height) - 0.2rem);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(12, 22, 33, 0.9) 0%, rgba(12, 22, 33, 0.4) 65%, rgba(12, 22, 33, 0) 100%);
-  transform: translate(-50%, 0) rotate(-90deg);
+  transform: translate(-50%, 0);
 }
 
 .roulette__wheel {

@@ -182,3 +182,24 @@ test('reset snaps the wheel back to its initial orientation without animation', 
   const rotationAfterWait = await readWheelRotation(page);
   expect(rotationAfterWait).toBeCloseTo(rotationAfterReset, 2);
 });
+
+test('pointer anchors above the wheel and points toward its centre', async ({ page }) => {
+  await openRoulette(page);
+
+  const pointerBox = await page.locator('.roulette__pointer').boundingBox();
+  const wheelBox = await page.locator('.roulette__wheel').boundingBox();
+
+  expect(pointerBox).not.toBeNull();
+  expect(wheelBox).not.toBeNull();
+
+  if (!pointerBox || !wheelBox) {
+    throw new Error('Expected pointer and wheel to have bounding boxes');
+  }
+
+  const pointerCenterX = pointerBox.x + pointerBox.width / 2;
+  const wheelCenterX = wheelBox.x + wheelBox.width / 2;
+  expect(Math.abs(pointerCenterX - wheelCenterX)).toBeLessThan(2);
+
+  const pointerTipY = pointerBox.y + pointerBox.height;
+  expect(pointerTipY).toBeLessThanOrEqual(wheelBox.y + 4);
+});
