@@ -13,18 +13,45 @@
     <link rel="stylesheet" href="home.css" />
   </head>
   <body>
-    <main class="home" aria-labelledby="site-title">
-      <p class="home__eyebrow">Discovering Tennis</p>
-      <h1 id="site-title" class="home__title">Interactive tennis experiences.</h1>
-      <p class="home__lede">Pick an experience below to test how well you read the game.</p>
-      <nav class="home__nav" aria-label="Experiences">
-        <ul class="home__links">
-          <li class="home__link-item">
-            <a class="home__link" href="projects/point-roulette/">Point Roulette</a>
-            <span class="home__link-note">One-second rally reads</span>
+    <main class="layout" aria-labelledby="site-title">
+      <header class="layout__header">
+        <p class="layout__eyebrow">Discovering Tennis</p>
+        <h1 id="site-title" class="layout__title">
+          Explore tennis and experience how well you know this awesome game
+        </h1>
+        <p class="layout__intro">
+          Discovering Tennis is your home base for interactive drills, fast games, and quick reads on the sport. Pick an
+          experience below and see how sharp your instincts feel today.
+        </p>
+      </header>
+
+      <section class="layout__section" aria-labelledby="experiences-title">
+        <h2 id="experiences-title" class="layout__section-title">Experiences</h2>
+        <ul class="experience-list">
+          <li class="experience-card">
+            <div class="experience-card__body">
+              <h3 class="experience-card__title">Point Roulette</h3>
+              <p class="experience-card__summary">
+                Tap to start, tap to stop, and judge the rally before the one-second loop expires.
+              </p>
+            </div>
+            <a class="experience-card__cta" href="projects/point-roulette/" aria-label="Open Point Roulette">
+              Launch
+            </a>
+          </li>
+          <li class="experience-card">
+            <div class="experience-card__body">
+              <h3 class="experience-card__title">Feel Tennis Quiz</h3>
+              <p class="experience-card__summary">
+                Paste any tennis article URL, let the assistant distill it, and challenge yourself with a custom quiz.
+              </p>
+            </div>
+            <a class="experience-card__cta" href="projects/feel-tennis-quiz/" aria-label="Open Feel Tennis Quiz">
+              Launch
+            </a>
           </li>
         </ul>
-      </nav>
+      </section>
     </main>
   </body>
 </html>
