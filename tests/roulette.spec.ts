@@ -2,9 +2,16 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+<<<<<<< HEAD
 const pageUrl = pathToFileURL(
   path.resolve(__dirname, '..', 'projects', 'point-roulette', 'index.html'),
 ).toString();
+=======
+const pageUrl = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).toString();
+
+const durationLowerBound = 950;
+const durationUpperBound = 1150;
+>>>>>>> main
 
 const probabilityExpectations = [
   { probe: 0.0, label: 'weak-ball-A' },
@@ -20,6 +27,7 @@ async function openRoulette(page) {
   await page.waitForFunction(() => Boolean(window.pointroulette));
 }
 
+<<<<<<< HEAD
 test('probability ranges map to the correct labels', async ({ page }) => {
   await openRoulette(page);
   const observed = await page.evaluate(
@@ -30,12 +38,31 @@ test('probability ranges map to the correct labels', async ({ page }) => {
       })),
     probabilityExpectations,
   );
+=======
+test('spin resolves in roughly one second', async ({ page }) => {
+  await openRoulette(page);
+  const result = await page.evaluate(() => window.pointroulette.spin({ randomValue: 0.1 }));
+  expect(result).not.toBeNull();
+  expect(result.duration).toBeGreaterThanOrEqual(durationLowerBound);
+  expect(result.duration).toBeLessThanOrEqual(durationUpperBound);
+});
+
+test('probability ranges map to the correct labels', async ({ page }) => {
+  await openRoulette(page);
+  const observed = await page.evaluate((checks) =>
+    checks.map((entry) => ({
+      probe: entry.probe,
+      label: window.pointroulette.segmentForValue(entry.probe).label,
+    }))
+  , probabilityExpectations);
+>>>>>>> main
 
   for (const [index, expectation] of probabilityExpectations.entries()) {
     expect(observed[index].label).toBe(expectation.label);
   }
 });
 
+<<<<<<< HEAD
 test('manual stop before the one-second loop lands on the expected message', async ({ page }) => {
   await openRoulette(page);
   await page.evaluate(() => window.pointroulette.start());
@@ -80,4 +107,13 @@ test('wheel shakes during the pressure window', async ({ page }) => {
     el.classList.contains('roulette__wheel-container--shake'),
   );
   expect(stillShaking).toBe(false);
+=======
+test('status message updates to a valid result after tapping the button', async ({ page }) => {
+  await openRoulette(page);
+  await page.getByRole('button', { name: /tap to spin/i }).click();
+  await page.waitForTimeout(durationUpperBound + 150);
+  const text = (await page.locator('#roulette-status').textContent())?.trim();
+  const validMessages = await page.evaluate(() => window.pointroulette.messages);
+  expect(validMessages).toContain(text);
+>>>>>>> main
 });
