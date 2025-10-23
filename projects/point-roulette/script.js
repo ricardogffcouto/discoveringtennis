@@ -1,6 +1,9 @@
 const SPIN_DURATION_MS = 1000;
+const SHAKE_DELAY_MS = 500;
+const LATE_MESSAGE = 'Late ball! Unforced error.';
 
 const wheel = document.querySelector('.roulette__wheel');
+const wheelContainer = document.querySelector('.roulette__wheel-container');
 const button = document.getElementById('spin-button');
 const status = document.getElementById('roulette-status');
 
@@ -65,63 +68,135 @@ function segmentForValue(value) {
 
 const state = {
   isSpinning: false,
-  currentRotation: 0,
+  startTimestamp: 0,
+  animationFrameId: null,
+  shakeTimeoutId: null,
+  autoStopTimeoutId: null,
+  lastResult: null,
 };
 
 function updateStatus(text) {
   status.textContent = text;
 }
 
-function performSpin(randomValue) {
-  const segment = segmentForValue(randomValue);
-  const targetRotation = state.currentRotation + 360 + segment.centerAngle;
-  const startTimestamp = performance.now();
-
-  wheel.style.transition = 'none';
-  wheel.style.transform = `rotate(${state.currentRotation}deg)`;
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      wheel.style.transition = `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
-      wheel.style.transform = `rotate(${targetRotation}deg)`;
-    });
-  });
-
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      state.currentRotation = targetRotation % 360;
-      state.isSpinning = false;
-      button.disabled = false;
-      updateStatus(segment.message);
-      resolve({
-        segment,
-        duration: performance.now() - startTimestamp,
-      });
-    }, SPIN_DURATION_MS);
-  });
+function setButtonLabel(text) {
+  button.textContent = text;
 }
 
-async function spin({ randomValue } = {}) {
+function applyRotation(degrees) {
+  wheel.style.transform = `rotate(${degrees}deg)`;
+}
+
+function rotationFromElapsed(elapsedMs) {
+  const boundedElapsed = Math.max(0, elapsedMs % SPIN_DURATION_MS);
+  return (boundedElapsed / SPIN_DURATION_MS) * 360;
+}
+
+function clearTimers() {
+  if (state.animationFrameId !== null) {
+    cancelAnimationFrame(state.animationFrameId);
+    state.animationFrameId = null;
+  }
+  if (state.shakeTimeoutId !== null) {
+    clearTimeout(state.shakeTimeoutId);
+    state.shakeTimeoutId = null;
+  }
+  if (state.autoStopTimeoutId !== null) {
+    clearTimeout(state.autoStopTimeoutId);
+    state.autoStopTimeoutId = null;
+  }
+  wheelContainer.classList.remove('roulette__wheel-container--shake');
+}
+
+function finishSpin({ timedOut = false, timestamp = performance.now() } = {}) {
+  if (!state.isSpinning) {
+    return null;
+  }
+
+  clearTimers();
+
+  const elapsed = Math.min(timestamp - state.startTimestamp, SPIN_DURATION_MS);
+  const rotation = rotationFromElapsed(elapsed);
+  applyRotation(rotation);
+
+  state.isSpinning = false;
+  setButtonLabel('Tap to Start');
+
+  if (timedOut) {
+    updateStatus(LATE_MESSAGE);
+    state.lastResult = {
+      timedOut: true,
+      elapsed,
+      message: LATE_MESSAGE,
+      segment: null,
+    };
+    return state.lastResult;
+  }
+
+  const normalizedValue = (elapsed % SPIN_DURATION_MS) / SPIN_DURATION_MS;
+  const segment = segmentForValue(normalizedValue);
+  updateStatus(segment.message);
+
+  state.lastResult = {
+    timedOut: false,
+    elapsed,
+    segment,
+    message: segment.message,
+  };
+  return state.lastResult;
+}
+
+function tick(now) {
+  const elapsed = now - state.startTimestamp;
+  applyRotation(rotationFromElapsed(elapsed));
+  state.animationFrameId = requestAnimationFrame(tick);
+}
+
+function beginSpin() {
   if (state.isSpinning) {
     return null;
   }
 
+  clearTimers();
+  applyRotation(0);
   state.isSpinning = true;
-  button.disabled = true;
-  updateStatus('Spinning…');
+  state.startTimestamp = performance.now();
+  state.lastResult = null;
+  setButtonLabel('Tap to Stop');
+  updateStatus('Control the rally – tap again to set the outcome.');
 
-  const value = typeof randomValue === 'number' ? randomValue : Math.random();
-  return performSpin(value);
+  state.animationFrameId = requestAnimationFrame(tick);
+  state.shakeTimeoutId = window.setTimeout(() => {
+    wheelContainer.classList.add('roulette__wheel-container--shake');
+  }, SHAKE_DELAY_MS);
+
+  state.autoStopTimeoutId = window.setTimeout(() => {
+    finishSpin({ timedOut: true });
+  }, SPIN_DURATION_MS);
+
+  return {
+    startedAt: state.startTimestamp,
+    spinDurationMs: SPIN_DURATION_MS,
+  };
 }
 
 button.addEventListener('click', () => {
-  spin();
+  if (!state.isSpinning) {
+    beginSpin();
+  } else {
+    finishSpin({ timedOut: false });
+  }
 });
 
 window.pointroulette = {
-  spin,
+  start: beginSpin,
+  stop: () => finishSpin({ timedOut: false }),
+  timeout: () => finishSpin({ timedOut: true }),
+  isSpinning: () => state.isSpinning,
+  lastResult: () => state.lastResult,
   segmentForValue,
   segments,
   messages: segments.map((segment) => segment.message),
   spinDurationMs: SPIN_DURATION_MS,
+  lateMessage: LATE_MESSAGE,
 };

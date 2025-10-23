@@ -8,7 +8,7 @@ others.
 
 | Experience | Description | Entry point |
 | --- | --- | --- |
-| Point Roulette | Spin for a one-second rally cue with weighted outcomes. | [`projects/point-roulette/`](projects/point-roulette/) |
+| Point Roulette | Tap to start and stop a one-second loop for weighted rally cues. | [`projects/point-roulette/`](projects/point-roulette/) |
 
 ## Getting started
 
@@ -27,7 +27,8 @@ npm run build
 ## Test
 
 Automated UI coverage is provided through Playwright. The suite mounts the Point Roulette project
-directly from disk to verify spin timing, probability mapping, and user messaging.
+directly from disk to verify the manual start/stop loop, the late-action messaging, the pressure
+shake, and the probability mapping utilities.
 
 ```bash
 npx playwright install --with-deps
