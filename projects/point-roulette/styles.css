@@ -8,6 +8,9 @@
   --text-muted: rgba(255, 255, 255, 0.7);
   --accent: #ffcf50;
   --spin-duration: 1s;
+  --pointer-width: 2.35rem;
+  --pointer-height: 2.55rem;
+  --marker-width: 6px;
   font-size: clamp(15px, 1.9vw, 18px);
 }
 
@@ -83,6 +86,7 @@ body {
 }
 
 .roulette__wheel-container {
+  position: relative;
   width: min(70vw, 280px);
   aspect-ratio: 1;
   display: grid;
@@ -95,44 +99,126 @@ body {
   animation: roulette-shake 0.12s ease-in-out infinite;
 }
 
+.roulette__pointer {
+  position: absolute;
+  top: calc(var(--pointer-height) * -0.55);
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: calc(var(--pointer-width) / 2) solid transparent;
+  border-right: calc(var(--pointer-width) / 2) solid transparent;
+  border-top: var(--pointer-height) solid #ffffff;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+}
+
+.roulette__pointer::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--pointer-height) - 0.05rem);
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(12, 22, 33, 0.9) 0%, rgba(12, 22, 33, 0.35) 55%, rgba(12, 22, 33, 0) 100%);
+  transform: translate(-50%, 0);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
 .roulette__wheel {
+  --ball-scale: 0.15;
+  --ball-rotation: 0deg;
+  --wheel-base-rotation: 90deg;
+  --wheel-rotation: 0deg;
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
   background: conic-gradient(
-    from -90deg,
-    var(--dark-yellow) 0deg 72deg,
-    var(--dark-green) 72deg 180deg,
-    var(--dark-red) 180deg 216deg,
-    var(--bright-green) 216deg 234deg,
-    var(--dark-red) 234deg 270deg,
-    var(--dark-yellow) 270deg 360deg
+    from 0deg,
+    var(--dark-green) 0deg 108deg,
+    var(--dark-yellow) 108deg 270deg,
+    var(--dark-red) 270deg 306deg,
+    var(--bright-green) 306deg 324deg,
+    var(--dark-red) 324deg 360deg
   );
   box-shadow: inset 0 0 0 12px rgba(10, 16, 26, 0.85), 0 20px 35px rgba(0, 0, 0, 0.4);
   display: grid;
   place-items: center;
   position: relative;
   transition: transform 80ms linear;
+  overflow: hidden;
+  transform: rotate(calc(var(--wheel-base-rotation) + var(--wheel-rotation)));
 }
 
-.roulette__wheel::after {
+.roulette__wheel::before {
   content: '';
-  width: 35%;
-  height: 35%;
+  position: absolute;
+  inset: 14%;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fdfdfd 0%, #ffd56a 50%, #c38800 100%);
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+  background: rgba(7, 15, 24, 0.35);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 
-.roulette__pointer {
+.roulette__wheel--no-transition {
+  transition: none !important;
+}
+
+.roulette__marker {
   position: absolute;
-  top: -1.2rem;
-  width: 0;
-  height: 0;
-  border-left: 1.1rem solid transparent;
-  border-right: 1.1rem solid transparent;
-  border-bottom: 1.8rem solid var(--accent);
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+  top: 50%;
+  left: 50%;
+  width: var(--marker-width);
+  height: 52%;
+  transform: translate(-50%, -100%) rotate(calc(-1 * var(--wheel-base-rotation)));
+  transform-origin: 50% 100%;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+  border-radius: 999px;
+  box-shadow: 0 -4px 12px rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+.roulette__ball {
+  position: relative;
+  z-index: 1;
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55) 0 45%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(circle at 68% 72%, rgba(0, 0, 0, 0.38) 0 52%, rgba(0, 0, 0, 0) 76%),
+    radial-gradient(circle at 50% 50%, #e4ff68 0 55%, #caff3d 72%, #a4eb23 100%);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), 0 12px 24px rgba(0, 0, 0, 0.45);
+  transform: scale(var(--ball-scale)) rotate(var(--ball-rotation));
+  transition: transform 0.08s linear;
+}
+
+.roulette__ball--no-transition {
+  transition: none !important;
+}
+
+.roulette__ball::before,
+.roulette__ball::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  width: 34%;
+  border-radius: 50%;
+  border: 0.32rem solid rgba(255, 255, 255, 0.82);
+  border-left: none;
+  border-right: none;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.18));
+}
+
+.roulette__ball::before {
+  left: 1.5%;
+  transform: rotate(-18deg);
+}
+
+.roulette__ball::after {
+  right: 1.5%;
+  transform: rotate(18deg);
 }
 
 .roulette__button {
