@@ -2,16 +2,9 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-<<<<<<< HEAD
 const pageUrl = pathToFileURL(
   path.resolve(__dirname, '..', 'projects', 'point-roulette', 'index.html'),
 ).toString();
-=======
-const pageUrl = pathToFileURL(path.resolve(__dirname, '..', 'index.html')).toString();
-
-const durationLowerBound = 950;
-const durationUpperBound = 1150;
->>>>>>> main
 
 const probabilityExpectations = [
   { probe: 0.0, label: 'weak-ball-A' },
@@ -25,27 +18,33 @@ const probabilityExpectations = [
 async function openRoulette(page) {
   await page.goto(pageUrl);
   await page.waitForFunction(() => Boolean(window.pointroulette));
+  await page.evaluate(() => window.pointroulette.reset());
 }
 
-<<<<<<< HEAD
-test('probability ranges map to the correct labels', async ({ page }) => {
-  await openRoulette(page);
-  const observed = await page.evaluate(
-    (checks) =>
-      checks.map((entry) => ({
-        probe: entry.probe,
-        label: window.pointroulette.segmentForValue(entry.probe).label,
-      })),
-    probabilityExpectations,
-  );
-=======
-test('spin resolves in roughly one second', async ({ page }) => {
-  await openRoulette(page);
-  const result = await page.evaluate(() => window.pointroulette.spin({ randomValue: 0.1 }));
-  expect(result).not.toBeNull();
-  expect(result.duration).toBeGreaterThanOrEqual(durationLowerBound);
-  expect(result.duration).toBeLessThanOrEqual(durationUpperBound);
-});
+async function readBallScale(page) {
+  return page.locator('.roulette__ball').evaluate((el) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    return Math.hypot(matrix.a, matrix.b);
+  });
+}
+
+async function readBallRotation(page) {
+  return page.locator('.roulette__ball').evaluate((el) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    const radians = Math.atan2(matrix.b, matrix.a);
+    const degrees = (radians * 180) / Math.PI;
+    return (degrees + 360) % 360;
+  });
+}
+
+async function readWheelRotation(page) {
+  return page.locator('.roulette__wheel').evaluate((el) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    const radians = Math.atan2(matrix.b, matrix.a);
+    const degrees = (radians * 180) / Math.PI;
+    return (degrees + 360) % 360;
+  });
+}
 
 test('probability ranges map to the correct labels', async ({ page }) => {
   await openRoulette(page);
@@ -53,16 +52,15 @@ test('probability ranges map to the correct labels', async ({ page }) => {
     checks.map((entry) => ({
       probe: entry.probe,
       label: window.pointroulette.segmentForValue(entry.probe).label,
-    }))
-  , probabilityExpectations);
->>>>>>> main
+    })),
+  probabilityExpectations,
+  );
 
   for (const [index, expectation] of probabilityExpectations.entries()) {
     expect(observed[index].label).toBe(expectation.label);
   }
 });
 
-<<<<<<< HEAD
 test('manual stop before the one-second loop lands on the expected message', async ({ page }) => {
   await openRoulette(page);
   await page.evaluate(() => window.pointroulette.start());
@@ -97,23 +95,111 @@ test('wheel shakes during the pressure window', async ({ page }) => {
   await page.evaluate(() => window.pointroulette.start());
 
   await page.waitForTimeout(600);
-  const hasShake = await page.locator('.roulette__wheel-container').evaluate((el) =>
-    el.classList.contains('roulette__wheel-container--shake'),
-  );
+  const hasShake = await page
+    .locator('.roulette__wheel-container')
+    .evaluate((el) => el.classList.contains('roulette__wheel-container--shake'));
   expect(hasShake).toBe(true);
 
   await page.waitForTimeout(600);
-  const stillShaking = await page.locator('.roulette__wheel-container').evaluate((el) =>
-    el.classList.contains('roulette__wheel-container--shake'),
-  );
+  const stillShaking = await page
+    .locator('.roulette__wheel-container')
+    .evaluate((el) => el.classList.contains('roulette__wheel-container--shake'));
   expect(stillShaking).toBe(false);
-=======
-test('status message updates to a valid result after tapping the button', async ({ page }) => {
+});
+
+test('tennis ball grows as the spin approaches the deadline', async ({ page }) => {
   await openRoulette(page);
-  await page.getByRole('button', { name: /tap to spin/i }).click();
-  await page.waitForTimeout(durationUpperBound + 150);
-  const text = (await page.locator('#roulette-status').textContent())?.trim();
-  const validMessages = await page.evaluate(() => window.pointroulette.messages);
-  expect(validMessages).toContain(text);
->>>>>>> main
+
+  const idleScale = await readBallScale(page);
+  await page.evaluate(() => window.pointroulette.start());
+  await page.waitForTimeout(400);
+  const midScale = await readBallScale(page);
+  await page.waitForTimeout(350);
+  const lateScale = await readBallScale(page);
+
+  expect(midScale).toBeGreaterThan(idleScale);
+  expect(lateScale).toBeGreaterThan(midScale);
+});
+
+test('ball stays expanded when time runs out instead of resetting', async ({ page }) => {
+  await openRoulette(page);
+  await page.evaluate(() => window.pointroulette.start());
+  await page.waitForTimeout(1200);
+
+  const finalScale = await readBallScale(page);
+  expect(finalScale).toBeGreaterThan(0.9);
+});
+
+test('tennis ball rotates clockwise as the wheel spins', async ({ page }) => {
+  await openRoulette(page);
+
+  const idleRotation = await readBallRotation(page);
+  await page.evaluate(() => window.pointroulette.start());
+  await page.waitForTimeout(300);
+  const midRotation = await readBallRotation(page);
+  await page.waitForTimeout(300);
+  const lateRotation = await readBallRotation(page);
+
+  expect(midRotation).toBeGreaterThan(idleRotation);
+  expect(lateRotation).toBeGreaterThan(midRotation);
+});
+
+test('button cycles through start, hit, reset, then back to start', async ({ page }) => {
+  await openRoulette(page);
+
+  const button = page.locator('#spin-button');
+  await expect(button).toHaveText('Start');
+
+  await button.click();
+  await expect(button).toHaveText('Hit');
+
+  await page.waitForTimeout(320);
+  await button.click();
+  await expect(button).toHaveText('Reset');
+
+  await button.click();
+  await expect(button).toHaveText('Start');
+});
+
+test('reset snaps the wheel back to its initial orientation without animation', async ({ page }) => {
+  await openRoulette(page);
+
+  const button = page.locator('#spin-button');
+  await button.click();
+  await page.waitForTimeout(450);
+  await button.click();
+
+  const rotationBeforeReset = await readWheelRotation(page);
+  await expect(button).toHaveText('Reset');
+
+  await button.click();
+  const rotationAfterReset = await readWheelRotation(page);
+
+  expect(rotationBeforeReset).not.toBeCloseTo(rotationAfterReset, 1);
+  expect(rotationAfterReset).toBeCloseTo(90, 0);
+
+  await page.waitForTimeout(40);
+  const rotationAfterWait = await readWheelRotation(page);
+  expect(rotationAfterWait).toBeCloseTo(rotationAfterReset, 2);
+});
+
+test('pointer anchors above the wheel and points toward its centre', async ({ page }) => {
+  await openRoulette(page);
+
+  const pointerBox = await page.locator('.roulette__pointer').boundingBox();
+  const wheelBox = await page.locator('.roulette__wheel').boundingBox();
+
+  expect(pointerBox).not.toBeNull();
+  expect(wheelBox).not.toBeNull();
+
+  if (!pointerBox || !wheelBox) {
+    throw new Error('Expected pointer and wheel to have bounding boxes');
+  }
+
+  const pointerCenterX = pointerBox.x + pointerBox.width / 2;
+  const wheelCenterX = wheelBox.x + wheelBox.width / 2;
+  expect(Math.abs(pointerCenterX - wheelCenterX)).toBeLessThan(2);
+
+  const pointerTipY = pointerBox.y + pointerBox.height;
+  expect(pointerTipY).toBeLessThanOrEqual(wheelBox.y + 4);
 });
