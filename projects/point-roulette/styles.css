@@ -8,6 +8,8 @@
   --text-muted: rgba(255, 255, 255, 0.7);
   --accent: #ffcf50;
   --spin-duration: 1s;
+  --pointer-width: 1.6rem;
+  --pointer-height: 1.8rem;
   font-size: clamp(15px, 1.9vw, 18px);
 }
 
@@ -83,6 +85,7 @@ body {
 }
 
 .roulette__wheel-container {
+  position: relative;
   width: min(70vw, 280px);
   aspect-ratio: 1;
   display: grid;
@@ -95,44 +98,77 @@ body {
   animation: roulette-shake 0.12s ease-in-out infinite;
 }
 
+.roulette__pointer {
+  position: absolute;
+  top: calc(var(--pointer-height) * -0.88);
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: calc(var(--pointer-width) / 2) solid transparent;
+  border-right: calc(var(--pointer-width) / 2) solid transparent;
+  border-bottom: var(--pointer-height) solid var(--accent);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+}
+
+.roulette__pointer::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.35rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(12, 22, 33, 0.9) 0%, rgba(12, 22, 33, 0.4) 65%, rgba(12, 22, 33, 0) 100%);
+  transform: translateX(-50%);
+}
+
 .roulette__wheel {
+  --ball-scale: 0.15;
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
   background: conic-gradient(
-    from -90deg,
-    var(--dark-yellow) 0deg 72deg,
-    var(--dark-green) 72deg 180deg,
-    var(--dark-red) 180deg 216deg,
-    var(--bright-green) 216deg 234deg,
-    var(--dark-red) 234deg 270deg,
-    var(--dark-yellow) 270deg 360deg
+    from 270deg,
+    var(--dark-yellow) 0turn 0.2turn,
+    var(--dark-green) 0.2turn 0.5turn,
+    var(--dark-red) 0.5turn 0.6turn,
+    var(--bright-green) 0.6turn 0.65turn,
+    var(--dark-red) 0.65turn 0.75turn,
+    var(--dark-yellow) 0.75turn 1turn
   );
   box-shadow: inset 0 0 0 12px rgba(10, 16, 26, 0.85), 0 20px 35px rgba(0, 0, 0, 0.4);
   display: grid;
   place-items: center;
   position: relative;
   transition: transform 80ms linear;
+  overflow: hidden;
 }
 
-.roulette__wheel::after {
+.roulette__wheel::before {
   content: '';
-  width: 35%;
-  height: 35%;
+  position: absolute;
+  inset: 14%;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fdfdfd 0%, #ffd56a 50%, #c38800 100%);
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+  background: rgba(7, 15, 24, 0.35);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
 }
 
-.roulette__pointer {
-  position: absolute;
-  top: -1.2rem;
-  width: 0;
-  height: 0;
-  border-left: 1.1rem solid transparent;
-  border-right: 1.1rem solid transparent;
-  border-bottom: 1.8rem solid var(--accent);
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+.roulette__ball {
+  position: relative;
+  z-index: 1;
+  width: 38%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--ball-scale));
+  transition: transform 0.08s linear;
+}
+
+.roulette__ball img {
+  width: 100%;
+  height: 100%;
 }
 
 .roulette__button {

@@ -9,11 +9,16 @@ const config = {
     running: 'Control the rally – tap again to set the outcome.',
     late: 'Late ball! Unforced error.',
   },
+  ballScale: {
+    min: 0.15,
+    max: 1.05,
+  },
 };
 
 const elements = {
   wheel: document.querySelector('.roulette__wheel'),
   wheelContainer: document.querySelector('.roulette__wheel-container'),
+  ball: document.querySelector('.roulette__ball'),
   button: document.getElementById('spin-button'),
   status: document.getElementById('roulette-status'),
 };
@@ -97,6 +102,14 @@ function setWheelRotation(degrees) {
   elements.wheel.style.transform = `rotate(${degrees}deg)`;
 }
 
+function setBallScale(elapsedMs) {
+  const clamped = Math.min(Math.max(elapsedMs, 0), config.spinDurationMs);
+  const progress = clamped / config.spinDurationMs;
+  const scaleRange = config.ballScale.max - config.ballScale.min;
+  const scale = config.ballScale.min + progress * scaleRange;
+  elements.wheel.style.setProperty('--ball-scale', scale.toFixed(3));
+}
+
 function toggleShake(isActive) {
   elements.wheelContainer.classList.toggle('roulette__wheel-container--shake', isActive);
 }
@@ -129,18 +142,27 @@ function clearTimers() {
   toggleShake(false);
 }
 
+function clampElapsed(elapsedMs) {
+  return Math.min(Math.max(elapsedMs, 0), config.spinDurationMs);
+}
+
 function rotationFromElapsed(elapsedMs) {
-  const bounded = Math.max(0, elapsedMs % config.spinDurationMs);
-  return (bounded / config.spinDurationMs) * 360;
+  const clamped = clampElapsed(elapsedMs);
+  return (clamped / config.spinDurationMs) * 360;
 }
 
 function valueFromElapsed(elapsedMs) {
-  const bounded = Math.max(0, elapsedMs % config.spinDurationMs);
-  return bounded / config.spinDurationMs;
+  const clamped = Math.min(Math.max(elapsedMs, 0), config.spinDurationMs - 1);
+  return clamped / config.spinDurationMs;
 }
 
 function segmentFromElapsed(elapsedMs) {
   return segmentForValue(valueFromElapsed(elapsedMs));
+}
+
+function applyWheelState(elapsedMs) {
+  setWheelRotation(rotationFromElapsed(elapsedMs));
+  setBallScale(elapsedMs);
 }
 
 function finishSpin({
@@ -154,7 +176,8 @@ function finishSpin({
   clearTimers();
 
   const elapsed = Math.min(timestamp - state.startedAt, config.spinDurationMs);
-  setWheelRotation(rotationFromElapsed(elapsed));
+  const displayElapsed = reason === 'timeout' ? config.spinDurationMs - 1 : elapsed;
+  applyWheelState(displayElapsed);
 
   state.isSpinning = false;
   setButtonLabel(config.buttonLabels.start);
@@ -185,7 +208,7 @@ function finishSpin({
 
 function tick(now) {
   const elapsed = now - state.startedAt;
-  setWheelRotation(rotationFromElapsed(elapsed));
+  applyWheelState(elapsed);
   timers.frame = requestAnimationFrame(tick);
 }
 
@@ -195,7 +218,7 @@ function beginSpin() {
   }
 
   clearTimers();
-  setWheelRotation(0);
+  applyWheelState(0);
 
   state.isSpinning = true;
   state.startedAt = performance.now();
