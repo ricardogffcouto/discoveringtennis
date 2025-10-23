@@ -1,11 +1,22 @@
-const SPIN_DURATION_MS = 1000;
-const SHAKE_DELAY_MS = 500;
-const LATE_MESSAGE = 'Late ball! Unforced error.';
+const config = {
+  spinDurationMs: 1000,
+  shakeDelayMs: 500,
+  buttonLabels: {
+    start: 'Tap to Start',
+    stop: 'Tap to Stop',
+  },
+  statusMessages: {
+    running: 'Control the rally – tap again to set the outcome.',
+    late: 'Late ball! Unforced error.',
+  },
+};
 
-const wheel = document.querySelector('.roulette__wheel');
-const wheelContainer = document.querySelector('.roulette__wheel-container');
-const button = document.getElementById('spin-button');
-const status = document.getElementById('roulette-status');
+const elements = {
+  wheel: document.querySelector('.roulette__wheel'),
+  wheelContainer: document.querySelector('.roulette__wheel-container'),
+  button: document.getElementById('spin-button'),
+  status: document.getElementById('roulette-status'),
+};
 
 const SEGMENT_DEFINITIONS = [
   {
@@ -45,16 +56,12 @@ function createSegments(definitions) {
   return definitions.map((definition) => {
     const start = cursor;
     const end = cursor + definition.size;
-    const startAngle = start * 360;
-    const endAngle = end * 360;
     cursor = end;
+
     return {
       ...definition,
       start,
       end,
-      startAngle,
-      endAngle,
-      centerAngle: startAngle + (endAngle - startAngle) / 2,
     };
   });
 }
@@ -66,90 +73,120 @@ function segmentForValue(value) {
   return segments.find((segment) => safeValue < segment.end) ?? segments[segments.length - 1];
 }
 
+const timers = {
+  frame: null,
+  shake: null,
+  timeout: null,
+};
+
 const state = {
   isSpinning: false,
-  startTimestamp: 0,
-  animationFrameId: null,
-  shakeTimeoutId: null,
-  autoStopTimeoutId: null,
+  startedAt: 0,
   lastResult: null,
 };
 
-function updateStatus(text) {
-  status.textContent = text;
+function setStatus(message) {
+  elements.status.textContent = message;
 }
 
-function setButtonLabel(text) {
-  button.textContent = text;
+function setButtonLabel(label) {
+  elements.button.textContent = label;
 }
 
-function applyRotation(degrees) {
-  wheel.style.transform = `rotate(${degrees}deg)`;
+function setWheelRotation(degrees) {
+  elements.wheel.style.transform = `rotate(${degrees}deg)`;
 }
 
-function rotationFromElapsed(elapsedMs) {
-  const boundedElapsed = Math.max(0, elapsedMs % SPIN_DURATION_MS);
-  return (boundedElapsed / SPIN_DURATION_MS) * 360;
+function toggleShake(isActive) {
+  elements.wheelContainer.classList.toggle('roulette__wheel-container--shake', isActive);
+}
+
+function clearFrameLoop() {
+  if (timers.frame !== null) {
+    cancelAnimationFrame(timers.frame);
+    timers.frame = null;
+  }
+}
+
+function clearShakeTimer() {
+  if (timers.shake !== null) {
+    clearTimeout(timers.shake);
+    timers.shake = null;
+  }
+}
+
+function clearAutoTimeout() {
+  if (timers.timeout !== null) {
+    clearTimeout(timers.timeout);
+    timers.timeout = null;
+  }
 }
 
 function clearTimers() {
-  if (state.animationFrameId !== null) {
-    cancelAnimationFrame(state.animationFrameId);
-    state.animationFrameId = null;
-  }
-  if (state.shakeTimeoutId !== null) {
-    clearTimeout(state.shakeTimeoutId);
-    state.shakeTimeoutId = null;
-  }
-  if (state.autoStopTimeoutId !== null) {
-    clearTimeout(state.autoStopTimeoutId);
-    state.autoStopTimeoutId = null;
-  }
-  wheelContainer.classList.remove('roulette__wheel-container--shake');
+  clearFrameLoop();
+  clearShakeTimer();
+  clearAutoTimeout();
+  toggleShake(false);
 }
 
-function finishSpin({ timedOut = false, timestamp = performance.now() } = {}) {
+function rotationFromElapsed(elapsedMs) {
+  const bounded = Math.max(0, elapsedMs % config.spinDurationMs);
+  return (bounded / config.spinDurationMs) * 360;
+}
+
+function valueFromElapsed(elapsedMs) {
+  const bounded = Math.max(0, elapsedMs % config.spinDurationMs);
+  return bounded / config.spinDurationMs;
+}
+
+function segmentFromElapsed(elapsedMs) {
+  return segmentForValue(valueFromElapsed(elapsedMs));
+}
+
+function finishSpin({
+  reason = 'manual',
+  timestamp = performance.now(),
+} = {}) {
   if (!state.isSpinning) {
-    return null;
+    return state.lastResult;
   }
 
   clearTimers();
 
-  const elapsed = Math.min(timestamp - state.startTimestamp, SPIN_DURATION_MS);
-  const rotation = rotationFromElapsed(elapsed);
-  applyRotation(rotation);
+  const elapsed = Math.min(timestamp - state.startedAt, config.spinDurationMs);
+  setWheelRotation(rotationFromElapsed(elapsed));
 
   state.isSpinning = false;
-  setButtonLabel('Tap to Start');
+  setButtonLabel(config.buttonLabels.start);
 
-  if (timedOut) {
-    updateStatus(LATE_MESSAGE);
-    state.lastResult = {
+  if (reason === 'timeout') {
+    const result = {
       timedOut: true,
       elapsed,
-      message: LATE_MESSAGE,
+      message: config.statusMessages.late,
       segment: null,
     };
-    return state.lastResult;
+    state.lastResult = result;
+    setStatus(result.message);
+    return result;
   }
 
-  const normalizedValue = (elapsed % SPIN_DURATION_MS) / SPIN_DURATION_MS;
-  const segment = segmentForValue(normalizedValue);
-  updateStatus(segment.message);
-
-  state.lastResult = {
+  const segment = segmentFromElapsed(elapsed);
+  const result = {
     timedOut: false,
     elapsed,
     segment,
     message: segment.message,
   };
-  return state.lastResult;
+  state.lastResult = result;
+  setStatus(result.message);
+  return result;
 }
 
 function tick(now) {
-  const elapsed = now - state.startTimestamp;
-  applyRotation(rotationFromElapsed(elapsed));
-  state.animationFrameId = requestAnimationFrame(tick);
+  const elapsed = now - state.startedAt;
+  setWheelRotation(rotationFromElapsed(elapsed));
+  timers.frame = requestAnimationFrame(tick);
 }
 
 function beginSpin() {
@@ -158,45 +195,43 @@ function beginSpin() {
   }
 
   clearTimers();
-  applyRotation(0);
+  setWheelRotation(0);
+
   state.isSpinning = true;
-  state.startTimestamp = performance.now();
+  state.startedAt = performance.now();
   state.lastResult = null;
-  setButtonLabel('Tap to Stop');
-  updateStatus('Control the rally – tap again to set the outcome.');
 
-  state.animationFrameId = requestAnimationFrame(tick);
-  state.shakeTimeoutId = window.setTimeout(() => {
-    wheelContainer.classList.add('roulette__wheel-container--shake');
-  }, SHAKE_DELAY_MS);
+  setButtonLabel(config.buttonLabels.stop);
+  setStatus(config.statusMessages.running);
 
-  state.autoStopTimeoutId = window.setTimeout(() => {
-    finishSpin({ timedOut: true });
-  }, SPIN_DURATION_MS);
+  timers.frame = requestAnimationFrame(tick);
+  timers.shake = window.setTimeout(() => toggleShake(true), config.shakeDelayMs);
+  timers.timeout = window.setTimeout(() => finishSpin({ reason: 'timeout' }), config.spinDurationMs);
 
   return {
-    startedAt: state.startTimestamp,
-    spinDurationMs: SPIN_DURATION_MS,
+    startedAt: state.startedAt,
+    spinDurationMs: config.spinDurationMs,
   };
 }
 
-button.addEventListener('click', () => {
-  if (!state.isSpinning) {
-    beginSpin();
-  } else {
-    finishSpin({ timedOut: false });
+elements.button.addEventListener('click', () => {
+  if (state.isSpinning) {
+    finishSpin({ reason: 'manual' });
+    return;
   }
+
+  beginSpin();
 });
 
 window.pointroulette = {
   start: beginSpin,
-  stop: () => finishSpin({ timedOut: false }),
-  timeout: () => finishSpin({ timedOut: true }),
+  stop: () => finishSpin({ reason: 'manual' }),
+  timeout: () => finishSpin({ reason: 'timeout' }),
   isSpinning: () => state.isSpinning,
   lastResult: () => state.lastResult,
   segmentForValue,
   segments,
   messages: segments.map((segment) => segment.message),
-  spinDurationMs: SPIN_DURATION_MS,
-  lateMessage: LATE_MESSAGE,
+  spinDurationMs: config.spinDurationMs,
+  lateMessage: config.statusMessages.late,
 };
