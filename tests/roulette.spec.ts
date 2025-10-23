@@ -18,12 +18,31 @@ const probabilityExpectations = [
 async function openRoulette(page) {
   await page.goto(pageUrl);
   await page.waitForFunction(() => Boolean(window.pointroulette));
+  await page.evaluate(() => window.pointroulette.reset());
 }
 
 async function readBallScale(page) {
   return page.locator('.roulette__ball').evaluate((el) => {
     const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
-    return matrix.a;
+    return Math.hypot(matrix.a, matrix.b);
+  });
+}
+
+async function readBallRotation(page) {
+  return page.locator('.roulette__ball').evaluate((el) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    const radians = Math.atan2(matrix.b, matrix.a);
+    const degrees = (radians * 180) / Math.PI;
+    return (degrees + 360) % 360;
+  });
+}
+
+async function readWheelRotation(page) {
+  return page.locator('.roulette__wheel').evaluate((el) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+    const radians = Math.atan2(matrix.b, matrix.a);
+    const degrees = (radians * 180) / Math.PI;
+    return (degrees + 360) % 360;
   });
 }
 
@@ -109,4 +128,57 @@ test('ball stays expanded when time runs out instead of resetting', async ({ pag
 
   const finalScale = await readBallScale(page);
   expect(finalScale).toBeGreaterThan(0.9);
+});
+
+test('tennis ball rotates clockwise as the wheel spins', async ({ page }) => {
+  await openRoulette(page);
+
+  const idleRotation = await readBallRotation(page);
+  await page.evaluate(() => window.pointroulette.start());
+  await page.waitForTimeout(300);
+  const midRotation = await readBallRotation(page);
+  await page.waitForTimeout(300);
+  const lateRotation = await readBallRotation(page);
+
+  expect(midRotation).toBeGreaterThan(idleRotation);
+  expect(lateRotation).toBeGreaterThan(midRotation);
+});
+
+test('button cycles through start, hit, reset, then back to start', async ({ page }) => {
+  await openRoulette(page);
+
+  const button = page.locator('#spin-button');
+  await expect(button).toHaveText('Start');
+
+  await button.click();
+  await expect(button).toHaveText('Hit');
+
+  await page.waitForTimeout(320);
+  await button.click();
+  await expect(button).toHaveText('Reset');
+
+  await button.click();
+  await expect(button).toHaveText('Start');
+});
+
+test('reset snaps the wheel back to its initial orientation without animation', async ({ page }) => {
+  await openRoulette(page);
+
+  const button = page.locator('#spin-button');
+  await button.click();
+  await page.waitForTimeout(450);
+  await button.click();
+
+  const rotationBeforeReset = await readWheelRotation(page);
+  await expect(button).toHaveText('Reset');
+
+  await button.click();
+  const rotationAfterReset = await readWheelRotation(page);
+
+  expect(rotationBeforeReset).not.toBeCloseTo(rotationAfterReset, 1);
+  expect(rotationAfterReset).toBeCloseTo(90, 0);
+
+  await page.waitForTimeout(40);
+  const rotationAfterWait = await readWheelRotation(page);
+  expect(rotationAfterWait).toBeCloseTo(rotationAfterReset, 2);
 });

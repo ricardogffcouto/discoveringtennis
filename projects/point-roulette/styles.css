@@ -10,6 +10,7 @@
   --spin-duration: 1s;
   --pointer-width: 1.6rem;
   --pointer-height: 1.8rem;
+  --marker-width: 4px;
   font-size: clamp(15px, 1.9vw, 18px);
 }
 
@@ -100,14 +101,14 @@ body {
 
 .roulette__pointer {
   position: absolute;
-  top: calc(var(--pointer-height) * -0.88);
-  left: 50%;
+  right: calc(var(--pointer-height) * -0.85);
+  top: 50%;
   width: 0;
   height: 0;
   border-left: calc(var(--pointer-width) / 2) solid transparent;
   border-right: calc(var(--pointer-width) / 2) solid transparent;
   border-bottom: var(--pointer-height) solid var(--accent);
-  transform: translateX(-50%);
+  transform: translateY(-50%) rotate(90deg);
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 
@@ -120,11 +121,14 @@ body {
   height: 1.6rem;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(12, 22, 33, 0.9) 0%, rgba(12, 22, 33, 0.4) 65%, rgba(12, 22, 33, 0) 100%);
-  transform: translateX(-50%);
+  transform: translate(-50%, 0) rotate(-90deg);
 }
 
 .roulette__wheel {
   --ball-scale: 0.15;
+  --ball-rotation: 0deg;
+  --wheel-base-rotation: 90deg;
+  --wheel-rotation: 0deg;
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
@@ -143,6 +147,7 @@ body {
   position: relative;
   transition: transform 80ms linear;
   overflow: hidden;
+  transform: rotate(calc(var(--wheel-base-rotation) + var(--wheel-rotation)));
 }
 
 .roulette__wheel::before {
@@ -155,6 +160,22 @@ body {
   pointer-events: none;
 }
 
+.roulette__wheel--no-transition {
+  transition: none !important;
+}
+
+.roulette__marker {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--marker-width);
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+  transform: translateX(-50%) rotate(calc(-1 * var(--wheel-base-rotation)));
+  transform-origin: 50% 0%;
+  pointer-events: none;
+}
+
 .roulette__ball {
   position: relative;
   z-index: 1;
@@ -162,8 +183,12 @@ body {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  transform: scale(var(--ball-scale));
+  transform: scale(var(--ball-scale)) rotate(var(--ball-rotation));
   transition: transform 0.08s linear;
+}
+
+.roulette__ball--no-transition {
+  transition: none !important;
 }
 
 .roulette__ball img {

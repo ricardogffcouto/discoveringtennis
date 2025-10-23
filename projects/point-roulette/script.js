@@ -2,16 +2,25 @@ const config = {
   spinDurationMs: 1000,
   shakeDelayMs: 500,
   buttonLabels: {
-    start: 'Tap to Start',
-    stop: 'Tap to Stop',
+    start: 'Start',
+    hit: 'Hit',
+    reset: 'Reset',
   },
   statusMessages: {
+    idle: 'Waiting for your serve.',
     running: 'Control the rally – tap again to set the outcome.',
     late: 'Late ball! Unforced error.',
   },
   ballScale: {
     min: 0.15,
     max: 1.05,
+  },
+  ballRotation: {
+    min: 0,
+    max: 360,
+  },
+  wheel: {
+    baseRotation: 90,
   },
 };
 
@@ -85,7 +94,7 @@ const timers = {
 };
 
 const state = {
-  isSpinning: false,
+  phase: 'idle',
   startedAt: 0,
   lastResult: null,
 };
@@ -99,15 +108,18 @@ function setButtonLabel(label) {
 }
 
 function setWheelRotation(degrees) {
-  elements.wheel.style.transform = `rotate(${degrees}deg)`;
+  elements.wheel.style.setProperty('--wheel-rotation', `${degrees}deg`);
 }
 
-function setBallScale(elapsedMs) {
+function setBallState(elapsedMs) {
   const clamped = Math.min(Math.max(elapsedMs, 0), config.spinDurationMs);
   const progress = clamped / config.spinDurationMs;
   const scaleRange = config.ballScale.max - config.ballScale.min;
   const scale = config.ballScale.min + progress * scaleRange;
+  const rotationRange = config.ballRotation.max - config.ballRotation.min;
+  const rotation = config.ballRotation.min + progress * rotationRange;
   elements.wheel.style.setProperty('--ball-scale', scale.toFixed(3));
+  elements.wheel.style.setProperty('--ball-rotation', `${rotation.toFixed(1)}deg`);
 }
 
 function toggleShake(isActive) {
@@ -162,14 +174,14 @@ function segmentFromElapsed(elapsedMs) {
 
 function applyWheelState(elapsedMs) {
   setWheelRotation(rotationFromElapsed(elapsedMs));
-  setBallScale(elapsedMs);
+  setBallState(elapsedMs);
 }
 
 function finishSpin({
   reason = 'manual',
   timestamp = performance.now(),
 } = {}) {
-  if (!state.isSpinning) {
+  if (state.phase !== 'spinning') {
     return state.lastResult;
   }
 
@@ -179,8 +191,8 @@ function finishSpin({
   const displayElapsed = reason === 'timeout' ? config.spinDurationMs - 1 : elapsed;
   applyWheelState(displayElapsed);
 
-  state.isSpinning = false;
-  setButtonLabel(config.buttonLabels.start);
+  state.phase = 'result';
+  setButtonLabel(config.buttonLabels.reset);
 
   if (reason === 'timeout') {
     const result = {
@@ -213,18 +225,22 @@ function tick(now) {
 }
 
 function beginSpin() {
-  if (state.isSpinning) {
+  if (state.phase === 'spinning') {
     return null;
+  }
+
+  if (state.phase === 'result') {
+    return state.lastResult;
   }
 
   clearTimers();
   applyWheelState(0);
 
-  state.isSpinning = true;
+  state.phase = 'spinning';
   state.startedAt = performance.now();
   state.lastResult = null;
 
-  setButtonLabel(config.buttonLabels.stop);
+  setButtonLabel(config.buttonLabels.hit);
   setStatus(config.statusMessages.running);
 
   timers.frame = requestAnimationFrame(tick);
@@ -238,19 +254,53 @@ function beginSpin() {
 }
 
 elements.button.addEventListener('click', () => {
-  if (state.isSpinning) {
+  if (state.phase === 'spinning') {
     finishSpin({ reason: 'manual' });
+    return;
+  }
+
+  if (state.phase === 'result') {
+    resetRoulette();
     return;
   }
 
   beginSpin();
 });
 
+function resetRoulette() {
+  clearTimers();
+
+  const suppressTransitions = () => {
+    elements.wheel.classList.add('roulette__wheel--no-transition');
+    elements.ball.classList.add('roulette__ball--no-transition');
+  };
+
+  const restoreTransitions = () => {
+    elements.wheel.classList.remove('roulette__wheel--no-transition');
+    elements.ball.classList.remove('roulette__ball--no-transition');
+  };
+
+  suppressTransitions();
+  elements.wheel.style.setProperty('--wheel-base-rotation', `${config.wheel.baseRotation}deg`);
+  applyWheelState(0);
+  // Force reflow so the immediate reset takes effect before restoring transitions.
+  void elements.wheel.offsetWidth;
+  restoreTransitions();
+
+  state.phase = 'idle';
+  state.startedAt = 0;
+  state.lastResult = null;
+
+  setButtonLabel(config.buttonLabels.start);
+  setStatus(config.statusMessages.idle);
+}
+
 window.pointroulette = {
   start: beginSpin,
   stop: () => finishSpin({ reason: 'manual' }),
   timeout: () => finishSpin({ reason: 'timeout' }),
-  isSpinning: () => state.isSpinning,
+  reset: resetRoulette,
+  isSpinning: () => state.phase === 'spinning',
   lastResult: () => state.lastResult,
   segmentForValue,
   segments,
@@ -258,3 +308,5 @@ window.pointroulette = {
   spinDurationMs: config.spinDurationMs,
   lateMessage: config.statusMessages.late,
 };
+
+resetRoulette();
